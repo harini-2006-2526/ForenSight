@@ -513,82 +513,7 @@
             </div>
         </div>
 
-        <!-- AI Analysis Platform (Initially Hidden) -->
-        <div id="ai-platform" class="page-section">
-            <div class="row">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header bg-primary text-white">
-                            <h4 class="mb-0">ForenSight AI Analysis Platform</h4>
-                        </div>
-                        <div class="card-body">
-                            <div class="alert alert-info">
-                                <i class="fas fa-info-circle me-2"></i> 
-                                This section would integrate with the Python backend for actual forensic analysis.
-                                For demonstration purposes, we're showing the interface.
-                            </div>
-                            
-                            <div class="row mb-4">
-                                <div class="col-md-6">
-                                    <div class="card">
-                                        <div class="card-header">
-                                            <h5>Upload Files</h5>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="mb-3">
-                                                <label for="fileUpload" class="form-label">Select files to analyze (max 5GB)</label>
-                                                <input class="form-control" type="file" id="fileUpload" multiple>
-                                            </div>
-                                            <button class="btn btn-primary" id="uploadBtn">
-                                                <i class="fas fa-upload me-2"></i> Upload Files
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="card">
-                                        <div class="card-header">
-                                            <h5>Analysis Results</h5>
-                                        </div>
-                                        <div class="card-body">
-                                            <div id="analysisResults">
-                                                <p class="text-center text-muted">Upload files to see analysis results</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="card mb-4">
-                                <div class="card-header">
-                                    <h5>Chat with AI Analyst</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="chat-container" style="height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 5px; padding: 15px; margin-bottom: 15px;">
-                                        <div class="chat-message ai-message">
-                                            <strong>AI Analyst:</strong> Hello! I'm here to help you analyze your digital evidence. What would you like to know?
-                                        </div>
-                                    </div>
-                                    <div class="input-group">
-                                        <input type="text" class="form-control" placeholder="Ask a question about your data...">
-                                        <button class="btn btn-primary">Send</button>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="text-center">
-                                <button class="btn btn-success">
-                                    <i class="fas fa-file-pdf me-2"></i> Generate PDF Report
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Auth Modals -->
+   <!-- Auth Modals -->
     <div class="modal fade" id="authModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -960,6 +885,31 @@
                     updateUIForUser(null);
                 }
             });
+	                // Get Started button functionality
+            const getStartedBtn = document.querySelector('.hero-section .btn-primary');
+            if (getStartedBtn) {
+                getStartedBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    // Open the auth modal with login tab active
+                    const loginTab = document.querySelector('[data-tab="login"]');
+                    const loginForm = document.getElementById('login-form');
+                    const modalTitle = document.getElementById('authModalTitle');
+                    
+                    if (loginTab) loginTab.classList.add('active');
+                    if (loginForm) loginForm.classList.add('active');
+                    if (modalTitle) modalTitle.textContent = 'Login to ForenSight';
+                    
+                    // Remove active class from other tabs and forms
+                    document.querySelectorAll('.auth-tab').forEach(tab => {
+                        if (tab !== loginTab) tab.classList.remove('active');
+                    });
+                    document.querySelectorAll('.auth-form').forEach(form => {
+                        if (form !== loginForm) form.classList.remove('active');
+                    });
+                    
+                    authModal.show();
+                });
+            }
             
             // Update UI based on auth state
             function updateUIForUser(user) {
@@ -1011,6 +961,7 @@
                 }
             }
         });
+	
     </script>
 </body>
 </html>
