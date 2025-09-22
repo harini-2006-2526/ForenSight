@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ForenSight - Digital Forensic Analysis</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --light-color: #ecf0f1;
+            --dark-color: #2c3e50;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        
+        /* Splash Screen */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 9999;
+            transition: opacity 1s ease;
+        }
+        
+        .splash-logo {
+            width: 180px;
+            height: 180px;
+            background-color: white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            animation: pulse 2s infinite;
+        }
+        
+        .splash-logo i {
+            font-size: 80px;
+            color: var(--secondary-color);
+        }
+        
+        .splash-text {
+            color: white;
+            font-size: 3.5rem;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .splash-subtext {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.2rem;
+            margin-top: 10px;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        /* Navigation */
+        .navbar {
+            background-color: var(--primary-color);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            color: white !important;
+            font-size: 1.5rem;
+        }
+        
+        .nav-link {
+            color: rgba(255, 255, 255, 0.85) !important;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            color: white !important;
+        }
+        
+        /* Main Content */
+        .main-content {
+            display: none;
+            min-height: calc(100vh - 76px);
+            padding: 30px 0;
+        }
+        
+        .page-section {
+            display: none;
+        }
+        
+        .page-section.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .hero-section {
+            background: linear-gradient(rgba(44, 62, 80, 0.9), rgba(44, 62, 80, 0.8)), url('https://images.unsplash.com/photo-1563013544-824ae1b704d3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+            background-size: cover;
+            background-position: center;
+            color: white;
+            padding: 80px 0;
+            border-radius: 10px;
+            margin-bottom: 40px;
+        }
+        
+        .feature-card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s, box-shadow 0.3s;
+            height: 100%;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .feature-icon {
+            font-size: 2.5rem;
+            color: var(--secondary-color);
+            margin-bottom: 20px;
+        }
+        
+        /* Auth Forms */
+        .auth-container {
+            max-width: 400px;
+            margin: 40px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .auth-tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            color: #777;
+            transition: all 0.3s;
+        }
+        
+        .auth-tab.active {
+            color: var(--secondary-color);
+            border-bottom: 2px solid var(--secondary-color);
+        }
+        
+        .auth-form {
+            display: none;
+        }
+        
+        .auth-form.active {
+            display: block;
+        }
+        
+        /* Footer */
+        footer {
+            background-color: var(--dark-color);
+            color: white;
+            padding: 40px 0 20px;
+            margin-top: 40px;
+        }
+        
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .footer-links a:hover {
+            color: white;
+        }
+        
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .splash-text {
+                font-size: 2.5rem;
+            }
+            
+            .hero-section {
+                padding: 50px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Splash Screen -->
+    <div id="splash-screen">
+        <div class="splash-logo">
+            <i class="fas fa-microscope"></i>
+        </div>
+        <h1 class="splash-text">ForenSight</h1>
+        <p class="splash-subtext">Digital Forensic Analysis Platform</p>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-microscope me-2"></i>ForenSight
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" data-page="home">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="about">About</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="contact">Contact Us</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="help">Help</a>
+                    </li>
+                </ul>
+                <div class="d-flex">
+                    <button id="login-btn" class="btn btn-outline-light me-2">Login</button>
+                    <button id="register-btn" class="btn btn-light">Register</button>
+                    <div id="user-menu" style="display: none;">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-light dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown">
+                                <span id="username-display">User</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="#" id="logout-btn">Logout</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container main-content">
+        <!-- Home Page -->
+        <div id="home" class="page-section active">
+            <div class="hero-section text-center">
+                <div class="container">
+                    <h1 class="display-4 fw-bold mb-4">Advanced Digital Forensic Analysis</h1>
+                    <p class="lead mb-4">Uncover insights from digital evidence with AI-powered analysis</p>
+                    <button class="btn btn-primary btn-lg">Get Started</button>
+                </div>
+            </div>
+
+            <div class="row mb-5">
+                <div class="col-md-4 mb-4">
+                    <div class="feature-card card">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-icon">
+                                <i class="fas fa-search"></i>
+                            </div>
+                            <h3>AI-Powered Analysis</h3>
+                            <p>Our advanced AI algorithms detect suspicious patterns, cryptocurrency addresses, and foreign communications in digital evidence.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="feature-card card">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-icon">
+                                <i class="fas fa-file-pdf"></i>
+                            </div>
+                            <h3>Comprehensive Reports</h3>
+                            <p>Generate detailed PDF reports with findings, statistics, and recommendations for further investigation.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="feature-card card">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-icon">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <h3>Secure Data Storage</h3>
+                            <p>All your analysis and findings are securely stored in the cloud and accessible only to you.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row align-items-center mb-5">
+                <div class="col-md-6">
+                    <h2>How It Works</h2>
+                    <p>ForenSight simplifies digital forensic analysis with a streamlined process:</p>
+                    <ol>
+                        <li>Upload digital evidence files of various formats</li>
+                        <li>Our AI engine analyzes the content for suspicious patterns</li>
+                        <li>Chat with the AI to ask specific questions about your data</li>
+                        <li>Generate comprehensive reports for your investigations</li>
+                        <li>Securely store all your cases in the cloud</li>
+                    </ol>
+                </div>
+                <div class="col-md-6">
+                    <img src="https://images.unsplash.com/photo-1563207153-f403bf289096?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80" alt="How it works" class="img-fluid rounded">
+                </div>
+            </div>
+        </div>
+
+        <!-- About Page -->
+        <div id="about" class="page-section">
+            <div class="row mb-5">
+                <div class="col-lg-8 mx-auto text-center">
+                    <h1 class="mb-4">About ForenSight</h1>
+                    <p class="lead">ForenSight is an advanced digital forensic analysis platform designed to help investigators uncover insights from digital evidence.</p>
+                </div>
+            </div>
+
+            <div class="row mb-5">
+                <div class="col-md-6">
+                    <h3>Our Mission</h3>
+                    <p>We aim to simplify digital forensic analysis by leveraging artificial intelligence to detect patterns and anomalies that might be missed by manual inspection.</p>
+                    <p>Our platform is designed for both technical experts and investigators without deep technical knowledge, making advanced forensic tools accessible to all.</p>
+                </div>
+                <div class="col-md-6">
+                    <img src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80" alt="Our Mission" class="img-fluid rounded">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 order-md-2">
+                    <h3>Technology</h3>
+                    <p>ForenSight uses state-of-the-art AI algorithms including natural language processing, pattern recognition, and machine learning to analyze digital evidence.</p>
+                    <p>Our platform supports a wide range of file formats and can process files up to 5GB in size, making it suitable for even large-scale investigations.</p>
+                </div>
+                <div class="col-md-6 order-md-1">
+                    <img src="https://images.unsplash.com/photo-1535223289827-42f1e9919769?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80" alt="Technology" class="img-fluid rounded">
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Page -->
+        <div id="contact" class="page-section">
+            <div class="row">
+                <div class="col-lg-8 mx-auto">
+                    <h1 class="text-center mb-4">Contact Us</h1>
+                    <p class="text-center lead">Have questions or need support? Reach out to our team.</p>
+                    
+                    <div class="card mt-5">
+                        <div class="card-body p-4">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h3>Get in Touch</h3>
+                                    <p>We're here to help you with any questions about ForenSight.</p>
+                                    <div class="mt-4">
+                                        <h5><i class="fas fa-envelope me-2"></i> Email</h5>
+                                        <p>support@forensight.com</p>
+                                    </div>
+                                    <div class="mt-4">
+                                        <h5><i class="fas fa-clock me-2"></i> Support Hours</h5>
+                                        <p>Monday - Friday: 9:00 AM - 6:00 PM EST</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <form>
+                                        <div class="mb-3">
+                                            <label for="name" class="form-label">Your Name</label>
+                                            <input type="text" class="form-control" id="name">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="email" class="form-label">Email Address</label>
+                                            <input type="email" class="form-control" id="email">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="message" class="form-label">Message</label>
+                                            <textarea class="form-control" id="message" rows="4"></textarea>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">Send Message</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Page -->
+        <div id="help" class="page-section">
+            <div class="row">
+                <div class="col-lg-10 mx-auto">
+                    <h1 class="text-center mb-4">User Guide & Help</h1>
+                    <p class="text-center lead">Learn how to use ForenSight effectively for your digital forensic analysis.</p>
+                    
+                    <div class="accordion mt-5" id="helpAccordion">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#gettingStarted">
+                                    Getting Started with ForenSight
+                                </button>
+                            </h2>
+                            <div id="gettingStarted" class="accordion-collapse collapse show" data-bs-parent="#helpAccordion">
+                                <div class="accordion-body">
+                                    <p>To start using ForenSight:</p>
+                                    <ol>
+                                        <li>Create an account or login if you already have one</li>
+                                        <li>Upload your digital evidence files using the file uploader</li>
+                                        <li>Wait for the AI to analyze the content</li>
+                                        <li>Use the chat interface to ask questions about your data</li>
+                                        <li>Generate comprehensive PDF reports of your findings</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#fileFormats">
+                                    Supported File Formats
+                                </button>
+                            </h2>
+                            <div id="fileFormats" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                                <div class="accordion-body">
+                                    <p>ForenSight supports a wide range of file formats:</p>
+                                    <ul>
+                                        <li>Text files: TXT, LOG, CSV</li>
+                                        <li>Documents: PDF, DOCX</li>
+                                        <li>Spreadsheets: XLSX, XLS</li>
+                                        <li>Images: JPG, PNG, TIFF (with OCR capabilities)</li>
+                                        <li>Archive files: ZIP, RAR, TAR</li>
+                                        <li>And many more</li>
+                                    </ul>
+                                    <p>Files up to 5GB in size are supported.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#analysisTypes">
+                                    Types of Analysis
+                                </button>
+                            </h2>
+                            <div id="analysisTypes" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                                <div class="accordion-body">
+                                    <p>ForenSight can detect and analyze:</p>
+                                    <ul>
+                                        <li>Cryptocurrency addresses (Bitcoin, Ethereum, etc.)</li>
+                                        <li>Foreign phone numbers and international communications</li>
+                                        <li>Suspicious keywords and patterns</li>
+                                        <li>Potential phishing URLs and malicious IP addresses</li>
+                                        <li>Financial transactions and money laundering patterns</li>
+                                        <li>Network activity and connections</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#troubleshooting">
+                                    Troubleshooting
+                                </button>
+                            </h2>
+                            <div id="troubleshooting" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                                <div class="accordion-body">
+                                    <h5>File upload issues</h5>
+                                    <p>If you're having trouble uploading files:</p>
+                                    <ul>
+                                        <li>Check that your file size is under 5GB</li>
+                                        <li>Ensure you have a stable internet connection</li>
+                                        <li>Try using a different browser</li>
+                                    </ul>
+                                    
+                                    <h5>Analysis not working</h5>
+                                    <p>If analysis isn't working as expected:</p>
+                                    <ul>
+                                        <li>Make sure your files contain text content (images will be processed with OCR)</li>
+                                        <li>Check that you're using a supported file format</li>
+                                        <li>Contact support if issues persist</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Analysis Platform (Initially Hidden) -->
+        <div id="ai-platform" class="page-section">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h4 class="mb-0">ForenSight AI Analysis Platform</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i> 
+                                This section would integrate with the Python backend for actual forensic analysis.
+                                For demonstration purposes, we're showing the interface.
+                            </div>
+                            
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>Upload Files</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label for="fileUpload" class="form-label">Select files to analyze (max 5GB)</label>
+                                                <input class="form-control" type="file" id="fileUpload" multiple>
+                                            </div>
+                                            <button class="btn btn-primary" id="uploadBtn">
+                                                <i class="fas fa-upload me-2"></i> Upload Files
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>Analysis Results</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="analysisResults">
+                                                <p class="text-center text-muted">Upload files to see analysis results</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h5>Chat with AI Analyst</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chat-container" style="height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 5px; padding: 15px; margin-bottom: 15px;">
+                                        <div class="chat-message ai-message">
+                                            <strong>AI Analyst:</strong> Hello! I'm here to help you analyze your digital evidence. What would you like to know?
+                                        </div>
+                                    </div>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" placeholder="Ask a question about your data...">
+                                        <button class="btn btn-primary">Send</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="text-center">
+                                <button class="btn btn-success">
+                                    <i class="fas fa-file-pdf me-2"></i> Generate PDF Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auth Modals -->
+    <div class="modal fade" id="authModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="authModalTitle">Login to ForenSight</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="auth-tabs">
+                        <div class="auth-tab active" data-tab="login">Login</div>
+                        <div class="auth-tab" data-tab="register">Register</div>
+                    </div>
+                    
+                    <div class="auth-form active" id="login-form">
+                        <div class="mb-3">
+                            <label for="login-email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="login-email">
+                        </div>
+                        <div class="mb-3">
+                            <label for="login-password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="login-password">
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="remember-me">
+                            <label class="form-check-label" for="remember-me">Remember me</label>
+                        </div>
+                        <button type="button" class="btn btn-primary w-100" id="login-submit">Login</button>
+                        <div class="text-center mt-3">
+                            <a href="#" id="forgot-password">Forgot password?</a>
+                        </div>
+                    </div>
+                    
+                    <div class="auth-form" id="register-form">
+                        <div class="mb-3">
+                            <label for="register-name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="register-name">
+                        </div>
+                        <div class="mb-3">
+                            <label for="register-email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="register-email">
+                        </div>
+                        <div class="mb-3">
+                            <label for="register-username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="register-username">
+                        </div>
+                        <div class="mb-3">
+                            <label for="register-password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="register-password">
+                        </div>
+                        <div class="mb-3">
+                            <label for="register-confirm" class="form-label">Confirm Password</label>
+                            <input type="password" class="form-control" id="register-confirm">
+                        </div>
+                        <button type="button" class="btn btn-primary w-100" id="register-submit">Register</button>
+                    </div>
+                    
+                    <div class="auth-form" id="forgot-form">
+                        <div class="mb-3">
+                            <label for="forgot-email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="forgot-email">
+                        </div>
+                        <p class="text-muted">Enter your email address and we'll send you a link to reset your password.</p>
+                        <button type="button" class="btn btn-primary w-100" id="forgot-submit">Send Reset Link</button>
+                        <div class="text-center mt-3">
+                            <a href="#" id="back-to-login">Back to login</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <h5>ForenSight</h5>
+                    <p>Advanced digital forensic analysis powered by AI.</p>
+                </div>
+                <div class="col-md-2 mb-4">
+                    <h5>Links</h5>
+                    <ul class="list-unstyled footer-links">
+                        <li><a href="#" data-page="home">Home</a></li>
+                        <li><a href="#" data-page="about">About</a></li>
+                        <li><a href="#" data-page="contact">Contact</a></li>
+                        <li><a href="#" data-page="help">Help</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <h5>Legal</h5>
+                    <ul class="list-unstyled footer-links">
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <h5>Connect</h5>
+                    <div class="d-flex">
+                        <a href="#" class="text-light me-3"><i class="fab fa-twitter fa-lg"></i></a>
+                        <a href="#" class="text-light me-3"><i class="fab fa-facebook fa-lg"></i></a>
+                        <a href="#" class="text-light me-3"><i class="fab fa-linkedin fa-lg"></i></a>
+                        <a href="#" class="text-light"><i class="fab fa-github fa-lg"></i></a>
+                    </div>
+                </div>
+            </div>
+            <hr class="mt-4 mb-4">
+            <div class="text-center">
+                <p>&copy; 2023 ForenSight. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Wait for DOM to be fully loaded before executing script
+        document.addEventListener('DOMContentLoaded', function() {
+            // Firebase configuration
+            const firebaseConfig = {
+                apiKey: "AIzaSyDYd3LTVtxiT59tNwBGZLSYpl5UjQeu-2E",
+                authDomain: "udfr-370f2.firebaseapp.com",
+                projectId: "udfr-370f2",
+                storageBucket: "udfr-370f2.appspot.com",
+                messagingSenderId: "1094801172397",
+                appId: "1:1094801172397:web:652cdc4e66fe0dc1096324"
+            };
+            
+            // Initialize Firebase
+            firebase.initializeApp(firebaseConfig);
+            const auth = firebase.auth();
+            const db = firebase.firestore();
+            
+            // DOM Elements
+            const splashScreen = document.getElementById('splash-screen');
+            const mainContent = document.querySelector('.main-content');
+            const pageSections = document.querySelectorAll('.page-section');
+            const navLinks = document.querySelectorAll('.nav-link');
+            const authModalElement = document.getElementById('authModal');
+            const authModal = new bootstrap.Modal(authModalElement);
+            const authTabs = document.querySelectorAll('.auth-tab');
+            const authForms = document.querySelectorAll('.auth-form');
+            const loginBtn = document.getElementById('login-btn');
+            const registerBtn = document.getElementById('register-btn');
+            const userMenu = document.getElementById('user-menu');
+            const usernameDisplay = document.getElementById('username-display');
+            const logoutBtn = document.getElementById('logout-btn');
+            
+            // Check if splash screen element exists
+            if (splashScreen) {
+                // Hide splash screen after 3 seconds
+                setTimeout(() => {
+                    splashScreen.style.opacity = '0';
+                    setTimeout(() => {
+                        splashScreen.style.display = 'none';
+                        if (mainContent) {
+                            mainContent.style.display = 'block';
+                        }
+                    }, 1000);
+                }, 1000);
+            } else {
+                // If splash screen doesn't exist, show main content immediately
+                if (mainContent) {
+                    mainContent.style.display = 'block';
+                }
+            }
+            
+            // Navigation
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const page = link.getAttribute('data-page');
+                    
+                    // Update active nav link
+                    navLinks.forEach(navLink => navLink.classList.remove('active'));
+                    link.classList.add('active');
+                    
+                    // Show selected page
+                    pageSections.forEach(section => section.classList.remove('active'));
+                    const targetPage = document.getElementById(page);
+                    if (targetPage) {
+                        targetPage.classList.add('active');
+                    }
+                });
+            });
+            
+            // Auth tabs
+            authTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabName = tab.getAttribute('data-tab');
+                    
+                    // Update active tab
+                    authTabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    // Show selected form
+                    authForms.forEach(form => form.classList.remove('active'));
+                    const targetForm = document.getElementById(`${tabName}-form`);
+                    if (targetForm) {
+                        targetForm.classList.add('active');
+                    }
+                    
+                    // Update modal title
+                    const modalTitle = document.getElementById('authModalTitle');
+                    if (modalTitle) {
+                        modalTitle.textContent = 
+                            tabName === 'login' ? 'Login to ForenSight' : 'Create an Account';
+                    }
+                });
+            });
+            
+            // Auth modal triggers
+            if (loginBtn) {
+                loginBtn.addEventListener('click', () => {
+                    const loginTab = document.querySelector('[data-tab="login"]');
+                    const loginForm = document.getElementById('login-form');
+                    const modalTitle = document.getElementById('authModalTitle');
+                    
+                    if (loginTab) loginTab.classList.add('active');
+                    if (loginForm) loginForm.classList.add('active');
+                    if (modalTitle) modalTitle.textContent = 'Login to ForenSight';
+                    
+                    authModal.show();
+                });
+            }
+            
+            if (registerBtn) {
+                registerBtn.addEventListener('click', () => {
+                    const registerTab = document.querySelector('[data-tab="register"]');
+                    const registerForm = document.getElementById('register-form');
+                    const modalTitle = document.getElementById('authModalTitle');
+                    
+                    if (registerTab) registerTab.classList.add('active');
+                    if (registerForm) registerForm.classList.add('active');
+                    if (modalTitle) modalTitle.textContent = 'Create an Account';
+                    
+                    authModal.show();
+                });
+            }
+            
+            // Forgot password
+            const forgotPasswordLink = document.getElementById('forgot-password');
+            if (forgotPasswordLink) {
+                forgotPasswordLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    authForms.forEach(form => form.classList.remove('active'));
+                    const forgotForm = document.getElementById('forgot-form');
+                    const modalTitle = document.getElementById('authModalTitle');
+                    
+                    if (forgotForm) forgotForm.classList.add('active');
+                    if (modalTitle) modalTitle.textContent = 'Reset Password';
+                });
+            }
+            
+            const backToLoginLink = document.getElementById('back-to-login');
+            if (backToLoginLink) {
+                backToLoginLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    authForms.forEach(form => form.classList.remove('active'));
+                    const loginForm = document.getElementById('login-form');
+                    const modalTitle = document.getElementById('authModalTitle');
+                    
+                    if (loginForm) loginForm.classList.add('active');
+                    if (modalTitle) modalTitle.textContent = 'Login to ForenSight';
+                });
+            }
+            
+            // Auth form submissions
+            const loginSubmit = document.getElementById('login-submit');
+            if (loginSubmit) {
+                loginSubmit.addEventListener('click', () => {
+                    const email = document.getElementById('login-email').value;
+                    const password = document.getElementById('login-password').value;
+                    
+                    auth.signInWithEmailAndPassword(email, password)
+                        .then((userCredential) => {
+                            const user = userCredential.user;
+                            
+                            // Redirect to Python app with user ID as parameter
+                            window.location.href = `http://localhost:8501?uid=${user.uid}`;
+                        })
+                        .catch((error) => {
+                            alert('Login error: ' + error.message);
+                        });
+                });
+            }
+            
+            const registerSubmit = document.getElementById('register-submit');
+            if (registerSubmit) {
+                registerSubmit.addEventListener('click', () => {
+                    const email = document.getElementById('register-email').value;
+                    const password = document.getElementById('register-password').value;
+                    const username = document.getElementById('register-username').value;
+                    const name = document.getElementById('register-name').value;
+                    
+                    // Check if username is available
+                    db.collection('users').where('username', '==', username).get()
+                        .then((querySnapshot) => {
+                            if (!querySnapshot.empty) {
+                                alert('Username already exists. Please choose a different one.');
+                                return;
+                            }
+                            
+                            // Create user
+                            auth.createUserWithEmailAndPassword(email, password)
+                                .then((userCredential) => {
+                                    const user = userCredential.user;
+                                    
+                                    // Send verification email with redirect URL to Python app
+                                    user.sendEmailVerification({
+                                        url: 'https://your-python-app-url.com' // Replace with your actual URL
+                                    });
+                                    
+                                    // Save user data to Firestore
+                                    return db.collection('users').doc(user.uid).set({
+                                        username: username,
+                                        name: name,
+                                        email: email,
+                                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                                    });
+                                })
+                                .then(() => {
+                                    alert('Registration successful! Please check your email for verification. After verifying, you will be redirected to the analysis platform.');
+                                    authModal.hide();
+                                })
+                                .catch((error) => {
+                                    alert('Registration error: ' + error.message);
+                                });
+                        });
+                });
+            }
+            
+            const forgotSubmit = document.getElementById('forgot-submit');
+            if (forgotSubmit) {
+                forgotSubmit.addEventListener('click', () => {
+                    const email = document.getElementById('forgot-email').value;
+                    
+                    auth.sendPasswordResetEmail(email)
+                        .then(() => {
+                            alert('Password reset email sent! Please check your inbox.');
+                            authModal.hide();
+                        })
+                        .catch((error) => {
+                            alert('Error sending reset email: ' + error.message);
+                        });
+                });
+            }
+            
+            // Logout
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', () => {
+                    auth.signOut().then(() => {
+                        updateUIForUser(null);
+                    });
+                });
+            }
+            
+            // Auth state observer
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    // User is signed in
+                    updateUIForUser(user);
+                    
+                    // Check if email is verified
+                    if (!user.emailVerified) {
+                        alert('Please verify your email address. Check your inbox.');
+                    }
+                } else {
+                    // User is signed out
+                    updateUIForUser(null);
+                }
+            });
+            
+            // Update UI based on auth state
+            function updateUIForUser(user) {
+                if (user) {
+                    // User is logged in
+                    if (loginBtn) loginBtn.style.display = 'none';
+                    if (registerBtn) registerBtn.style.display = 'none';
+                    if (userMenu) userMenu.style.display = 'block';
+                    
+                    // Get user data from Firestore
+                    db.collection('users').doc(user.uid).get()
+                        .then((doc) => {
+                            if (doc.exists && usernameDisplay) {
+                                usernameDisplay.textContent = doc.data().name || doc.data().username;
+                            } else if (usernameDisplay) {
+                                usernameDisplay.textContent = user.email;
+                            }
+                        })
+                        .catch((error) => {
+                            console.error('Error getting user data:', error);
+                            if (usernameDisplay) usernameDisplay.textContent = user.email;
+                        });
+                    
+                    // Show AI platform
+                    pageSections.forEach(section => section.classList.remove('active'));
+                    const aiPlatform = document.getElementById('ai-platform');
+                    if (aiPlatform) {
+                        aiPlatform.classList.add('active');
+                    }
+                } else {
+                    // User is not logged in
+                    if (loginBtn) loginBtn.style.display = 'block';
+                    if (registerBtn) registerBtn.style.display = 'block';
+                    if (userMenu) userMenu.style.display = 'none';
+                    
+                    // Show home page
+                    pageSections.forEach(section => section.classList.remove('active'));
+                    const homePage = document.getElementById('home');
+                    if (homePage) {
+                        homePage.classList.add('active');
+                    }
+                    
+                    // Reset active nav link
+                    navLinks.forEach(navLink => navLink.classList.remove('active'));
+                    const homeLink = document.querySelector('[data-page="home"]');
+                    if (homeLink) {
+                        homeLink.classList.add('active');
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
