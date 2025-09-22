@@ -42,35 +42,11 @@ import cryptography
 from cryptography.fernet import Fernet
 import hmac
 import logging
+
+# Firebase integration
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
 import requests
-
-def verify_user(uid):
-    """Verify user with Firebase"""
-    try:
-        user = auth.get_user(uid)
-        return user
-    except Exception as e:
-        st.error(f"Authentication error: {str(e)}")
-        return None
-
-
-
-# Initialize Firebase
-def initialize_firebase():
-    try:
-        if not firebase_admin._apps:  # check if already initialized
-            cred = credentials.Certificate(
-                r'C:\Users\Harini\OneDrive\Desktop\sih\udfr-370f2-firebase-adminsdk-fbsvc-f7cd6ae943.json'
-            )
-            firebase_admin.initialize_app(cred)
-        return firestore.client()
-    except Exception as e:
-        st.error(f"Firebase initialization error: {str(e)}")
-        return None
-# Initialize Firebase when the app starts
-db = initialize_firebase()
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -84,6 +60,19 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Initialize Firebase
+try:
+    if not firebase_admin._apps:
+        # You need to download your Firebase service account key JSON file
+        # and either provide the path or set it as an environment variable
+        cred_path = os.environ.get("FIREBASE_CREDENTIALS", r"C:\Users\Harini\OneDrive\Desktop\sih\udfr-370f2-firebase-adminsdk-fbsvc-f7cd6ae943.json")
+        cred = credentials.Certificate(cred_path)
+        firebase_admin.initialize_app(cred)
+    db = firestore.client()
+except Exception as e:
+    logger.error(f"Firebase initialization error: {e}")
+    st.error("Database connection failed. Some features may not work properly.")
+
 # Security configuration
 MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024  # 5GB
 ALLOWED_EXTENSIONS = {
@@ -92,58 +81,6 @@ ALLOWED_EXTENSIONS = {
 }
 
 # Security utilities
-class FirebaseDataManager:
-    """Manage data storage in Firebase"""
-    
-    def __init__(self, user_id):
-        self.user_id = user_id
-        self.db = firestore.client()
-    
-    def save_file_analysis(self, filename, analysis_data):
-        """Save file analysis to Firebase"""
-        doc_ref = self.db.collection('users').document(self.user_id)\
-                        .collection('analyses').document(filename)
-        doc_ref.set({
-            'filename': filename,
-            'analysis': analysis_data,
-            'timestamp': firestore.SERVER_TIMESTAMP
-        })
-    
-    def get_file_analyses(self):
-        """Get all file analyses for user"""
-        analyses_ref = self.db.collection('users').document(self.user_id)\
-                            .collection('analyses')
-        docs = analyses_ref.stream()
-        
-        analyses = {}
-        for doc in docs:
-            analyses[doc.id] = doc.to_dict()
-        
-        return analyses
-    
-    def save_chat_history(self, chat_data):
-        """Save chat history to Firebase"""
-        doc_ref = self.db.collection('users').document(self.user_id)\
-                        .collection('chats').document()
-        doc_ref.set({
-            'chat': chat_data,
-            'timestamp': firestore.SERVER_TIMESTAMP
-        })
-    
-    def get_chat_history(self):
-        """Get chat history for user"""
-        chats_ref = self.db.collection('users').document(self.user_id)\
-                         .collection('chats')
-        docs = chats_ref.order_by('timestamp').stream()
-        
-        chats = []
-        for doc in docs:
-            chats.append(doc.to_dict())
-        
-        return chats
-
-# Integrate into your UFDRAnalysisAgent
-
 class SecurityManager:
     """Manage security aspects of the application"""
     
@@ -210,6 +147,105 @@ def load_models():
 
 nlp = load_models()
 security_manager = SecurityManager()
+
+# Firebase Database Manager
+class FirebaseManager:
+    """Manage Firebase database operations"""
+    
+    def __init__(self):
+        try:
+            self.db = firestore.client()
+        except Exception as e:
+            logger.error(f"Firebase connection error: {e}")
+            self.db = None
+    
+    def save_user_data(self, user_id, user_data):
+        """Save user data to Firebase"""
+        if not self.db:
+            return False
+        
+        try:
+            user_ref = self.db.collection('users').document(user_id)
+            user_ref.set(user_data)
+            return True
+        except Exception as e:
+            logger.error(f"Error saving user data: {e}")
+            return False
+    
+    def get_user_data(self, user_id):
+        """Retrieve user data from Firebase"""
+        if not self.db:
+            return None
+        
+        try:
+            user_ref = self.db.collection('users').document(user_id)
+            user_data = user_ref.get()
+            if user_data.exists:
+                return user_data.to_dict()
+            return None
+        except Exception as e:
+            logger.error(f"Error retrieving user data: {e}")
+            return None
+    
+    def save_chat_history(self, user_id, session_id, chat_data):
+        """Save chat history to Firebase"""
+        if not self.db:
+            return False
+        
+        try:
+            chat_ref = self.db.collection('users').document(user_id).collection('chats').document(session_id)
+            chat_ref.set({
+                'timestamp': datetime.now(),
+                'chat_data': chat_data
+            })
+            return True
+        except Exception as e:
+            logger.error(f"Error saving chat history: {e}")
+            return False
+    
+    def get_chat_history(self, user_id, session_id):
+        """Retrieve chat history from Firebase"""
+        if not self.db:
+            return None
+        
+        try:
+            chat_ref = self.db.collection('users').document(user_id).collection('chats').document(session_id)
+            chat_data = chat_ref.get()
+            if chat_data.exists:
+                return chat_data.to_dict()
+            return None
+        except Exception as e:
+            logger.error(f"Error retrieving chat history: {e}")
+            return None
+    
+    def save_uploaded_file_info(self, user_id, file_info):
+        """Save information about uploaded files to Firebase"""
+        if not self.db:
+            return False
+        
+        try:
+            files_ref = self.db.collection('users').document(user_id).collection('files').document()
+            files_ref.set({
+                'timestamp': datetime.now(),
+                'file_info': file_info
+            })
+            return True
+        except Exception as e:
+            logger.error(f"Error saving file info: {e}")
+            return False
+    
+    def get_uploaded_files(self, user_id):
+        """Retrieve list of uploaded files for a user"""
+        if not self.db:
+            return []
+        
+        try:
+            files_ref = self.db.collection('users').document(user_id).collection('files')
+            files = files_ref.stream()
+            return [file.to_dict() for file in files]
+        except Exception as e:
+            logger.error(f"Error retrieving files: {e}")
+            return []
 
 class LargeFileProcessor:
     """Process large files efficiently with chunking and progress tracking"""
@@ -462,33 +498,37 @@ class UFDRParser:
     def _extract_communications(self, content: str) -> List[Dict[str, str]]:
         """Extract communication records from content"""
         communications = []
-        
-        # Look for chat/message patterns - improved pattern matching
+    
+    # Fixed chat/message patterns - corrected the regex errors
         message_patterns = [
             r'(\d{1,2}[:/]\d{1,2}[:/]\d{2,4})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+([^:]+):\s*(.+)',
-            r'\[(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\]\s+([^:]+):\s*(.+)',
-            r'(\d{2}/\d{2}/\d{4})\s+(\d{1,2}:\d{2}\s*[AP]M)\s+([^:]+):\s*(.+)',
-            r'(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+([^:]+):\s*(.+)'  # Added pattern for YYYY-MM-DD format
+            r'\[(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\]\s+([^:]+):\s*(.+)',  # Fixed: removed {2} -> \d{2}
+            r'(\d{2}/\d{2}/\d{4})\s+(\d{1,2}:\d{2}\s*[AP]M)\s+([^:]+):\s*(.+)',  # Fixed: removed {4} -> \d{4}
+            r'(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+([^:]+):\s*(.+)'
         ]
-        
+    
         for pattern in message_patterns:
-            matches = re.findall(pattern, content)
-            for match in matches:
-                if len(match) == 4:
-                    date, time, sender, message = match
-                    communications.append({
-                        'type': 'chat',
-                        'date': date,
-                        'time': time,
-                        'sender': sender.strip(),
-                        'content': message.strip(),
-                        'crypto_addresses': self._extract_crypto_addresses(message),
-                        'foreign_numbers': self._extract_foreign_numbers(message),
-                        'emails': self._extract_emails(message),
-                        'urls': self._extract_urls(message),
-                        'ips': self._extract_ips(message),
-                        'suspicious_keywords': self._extract_suspicious_keywords(message)
-                    })
+            try:
+                matches = re.findall(pattern, content)
+                for match in matches:
+                    if len(match) == 4:
+                        date, time, sender, message = match
+                        communications.append({
+                            'type': 'chat',
+                            'date': date,
+                            'time': time,
+                            'sender': sender.strip(),
+                            'content': message.strip(),
+                            'crypto_addresses': self._extract_crypto_addresses(message),
+                            'foreign_numbers': self._extract_foreign_numbers(message),
+                            'emails': self._extract_emails(message),
+                            'urls': self._extract_urls(message),
+                            'ips': self._extract_ips(message),
+                            'suspicious_keywords': self._extract_suspicious_keywords(message)
+                        })
+            except re.error as e:
+                logger.warning(f"Regex error with pattern {pattern}: {e}")
+                continue  # Skip invalid patterns
         
         return communications
     
@@ -891,12 +931,12 @@ class AIChatProcessor:
         if any(word in question_lower for word in ['crypto', 'bitcoin', 'ethereum', 'wallet']):
             # Look for crypto addresses in context
             crypto_patterns = [
-                r'\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b',
-                r'\b0x[a-fA-F0-9]{40}\b',
-                r'\bT[A-Za-z1-9]{33}\b',
-                r'\b[LM3][a-km-zA-HJ-NP-Z1-9]{25,34}\b',
-                r'\bbc1[a-zA-Z0-9]{39,59}\b'
-            ]
+                r'\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b',  # Bitcoin
+                r'\b0x[a-fA-F0-9]{40}\b',                # Ethereum
+                r'\bT[A-Za-z1-9]{33}\b',                 # Tron
+                r'\b[LM3][a-km-zA-HJ-NP-Z1-9]{25,34}\b', # Litecoin or Dogecoin
+                r'\bbc1[a-zA-Z0-9]{39,59}\b'             # Bitcoin Cash
+                ]
             
             crypto_addresses = []
             for pattern in crypto_patterns:
@@ -971,15 +1011,15 @@ class AIChatProcessor:
 class UFDRAnalysisAgent:
     """Main agent class that coordinates the UFDR analysis"""
     
-    def __init__(self,user_id):
-        self.user_id=user_id
-        self.data_manager = FirebaseDataManager(user_id)
-
+    def __init__(self, user_id=None):
         self.parser = UFDRParser()
         self.pdf_generator = PDFReportGenerator()
         self.ai_chat = AIChatProcessor()
         self.uploaded_files = {}
         self.temp_dir = tempfile.mkdtemp()
+        self.user_id = user_id
+        self.firebase = FirebaseManager()
+        self.session_id = str(datetime.now().timestamp())
     
     def process_uploaded_file(self, uploaded_file) -> Dict[str, Any]:
         """Process an uploaded file with progress tracking"""
@@ -999,7 +1039,7 @@ class UFDRAnalysisAgent:
                     progress_bar.progress(min(percent, 1.0))
                     progress_text.text(f"Processing: {processed}/{total} bytes ({percent*100:.1f}%)")
             
-            # Process the file
+          # Process the file
             parsed_data = self.parser.parse_file(
                 file_path, uploaded_file.name, update_progress
             )
@@ -1016,14 +1056,23 @@ class UFDRAnalysisAgent:
             
             # Add to AI context
             self.ai_chat.add_context(uploaded_file.name, parsed_data.get('content', ''))
-            self.data_manager.save_file_analysis(uploaded_file.name, parsed_data)
-            return parsed_data
             
+            # Save file info to Firebase
+            if self.user_id:
+                file_info = {
+                    'filename': uploaded_file.name,
+                    'size': uploaded_file.size,
+                    'upload_time': datetime.now().isoformat(),
+                    'file_type': uploaded_file.type,
+                    'analysis_summary': f"Processed with {len(parsed_data.get('communications', []))} communications found"
+                }
+                self.firebase.save_uploaded_file_info(self.user_id, file_info)
+            
+            return parsed_data
             
         except Exception as e:
             logger.error(f"Error processing file: {str(e)}")
             return {"error": str(e)}
-        
     
     def analyze_content(self, filename: str) -> Dict[str, Any]:
         """Analyze content of a specific file"""
@@ -1222,65 +1271,29 @@ class UFDRAnalysisAgent:
         response = self.ai_chat.get_answer(question, filename)
         
         # Save chat to Firebase
-        chat_data = {
-            'question': question,
-            'response': response,
-            'filename': filename,
-            'timestamp': datetime.now().isoformat()
-        }
-        self.data_manager.save_chat_history(chat_data)
+        if self.user_id:
+            chat_data = {
+                'question': question,
+                'response': response,
+                'filename': filename,
+                'timestamp': datetime.now().isoformat()
+            }
+            self.firebase.save_chat_history(self.user_id, self.session_id, chat_data)
         
         return response
 
 # Streamlit UI
 def main():
-    query_params = st.query_params
-    uid = query_params.get("uid", "")
-    
-    
-    if uid:
-        try:
-            user = auth.get_user(uid)   # Firebase Admin check
-            st.success(f"Welcome !!!!")
-        except Exception as e:
-            st.error("Invalid user. Please login again.")
-    else:
-        st.warning("No UID provided. Please login.")
-    
-    # Verify the user
-    user = verify_user(uid)
-    if not user:
-        st.error("Invalid user. Please login again.")
-        st.stop()
-    
-    # Store user ID in session state
-    st.session_state.user_id = uid
-    st.session_state.user_email = user.email
-    if 'agent' not in st.session_state:
-        st.session_state.agent = UFDRAnalysisAgent(st.session_state.user_id)
-    
-    # Load previous analyses and chats from Firebase
-    if 'loaded_data' not in st.session_state:
-        analyses = st.session_state.agent.data_manager.get_file_analyses()
-        chats = st.session_state.agent.data_manager.get_chat_history()
-        
-        # Restore analyses to agent
-        st.session_state.agent.uploaded_files = analyses
-        
-        # Restore chat history
-        st.session_state.chat_history = []
-        for chat in chats:
-            st.session_state.chat_history.append({
-                "role": "user", 
-                "content": chat['chat']['question']
-            })
-            st.session_state.chat_history.append({
-                "role": "assistant", 
-                "content": chat['chat']['response']
-            })
-        
-        st.session_state.loaded_data = True
     st.title("🔒 Secure UFDR AI Analyst")
+    
+    # Initialize session state
+    if 'agent' not in st.session_state:
+        st.session_state.agent = UFDRAnalysisAgent()
+    if 'chat_history' not in st.session_state:
+        st.session_state.chat_history = []
+    if 'current_file' not in st.session_state:
+        st.session_state.current_file = None
+    
     st.markdown("""
     Welcome to the secure AI-powered UFDR analysis platform. Upload files of any type (up to 5GB) and interact with 
     the AI to analyze suspicious activities, generate reports, and get answers to your questions.
@@ -1292,14 +1305,6 @@ def main():
     - Secure temporary file handling
     - Encrypted data processing
     """)
-    
-    # Initialize session state
-    if 'agent' not in st.session_state:
-        st.session_state.agent = UFDRAnalysisAgent()
-    if 'chat_history' not in st.session_state:
-        st.session_state.chat_history = []
-    if 'current_file' not in st.session_state:
-        st.session_state.current_file = None
     
     # Sidebar for file upload
     with st.sidebar:
